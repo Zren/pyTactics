@@ -52,7 +52,7 @@ class GroundTile:
         dimensions = (Config.tileWidth, Config.tileHeight + height * Config.tileWallHeight)
         tile = pygame.Surface(dimensions, pygame.SRCALPHA, 32)
         tile.blit(self.groundTexture, (0,0))
-        for h in range(self.h):
+        for h in range(height):
             y = Config.tileHeight/2 + h * Config.tileWallHeight
             tile.blit(self.wallTexture, (0, y))
         return tile
@@ -172,12 +172,12 @@ class IsoTacticsEngine(PyGameEngine):
         dimensions = (random.randint(3, 10), random.randint(3, 10))
         scene = IsoScene(dimensions)
         n = 0
-        for y in range(scene.groundGrid.height):
-            for x in range(scene.groundGrid.width):
-                cell = scene.groundGrid[(x, y)]
-                cell.groundTexture = self.tileSheet[n]
-                cell.wallTexture = self.wallTileSheet[n]
-                cell.h = random.randint(0, 6)
+        for y in range(scene.height):
+            for x in range(scene.width):
+                groundTile = scene.groundGrid[(x, y)]
+                groundTile.groundTexture = self.tileSheet[n]
+                groundTile.wallTexture = self.wallTileSheet[n]
+                scene[(x,y)].h = random.randint(0, 6)
                 n += 1
         player = Player()
         scene.playerGrid.addPlayer(player, (0,0))
