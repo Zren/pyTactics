@@ -14,37 +14,7 @@ import pygame
 import Config, Resource
 from PyGameEngine import PyGameEngine
 
-
-
-class Cell:
-    def __init__(self, x, y, h=0, groundTextureId=0, wallTextureId=0):
-        self.x = x
-        self.y = y
-        self.h = h
-        self.groundTextureId = groundTextureId
-        self.wallTextureId = wallTextureId
-    def render(self, tileSheet, wallTileSheet):
-        dimensions = (Config.tileWidth, Config.tileHeight + self.h * Config.tileWallHeight)
-        tile = pygame.Surface(dimensions, pygame.SRCALPHA, 32)
-        tile.blit(tileSheet[self.groundTextureId], (0,0))
-        for h in range(self.h):
-            y = Config.tileHeight/2 + h * Config.tileWallHeight
-            tile.blit(wallTileSheet[self.wallTextureId], (0, y))
-        return tile
-
-
-class IsoGrid:
-    def __init__(self, dimensions, tileSheet, wallTileSheet):
-        self.width, self.height = dimensions
-        self.data = [[Cell(x,y) for y in range(self.height)] for x in range(self.width)]
-        self.tileSheet = tileSheet
-        self.wallTileSheet = wallTileSheet
-    def __getitem__(self, coord):
-        try:
-            return self.data[coord[0]][coord[1]]
-        except:
-            return self.data[coord % self.width][coord / self.width]
-    def isoGridRenderOrder(self, width, height):
+def isoGridRenderOrder(width, height):
         order = []
         col, row = 0, 0
         index = 0
@@ -63,12 +33,45 @@ class IsoGrid:
                     row +=  overflow
                     col = width - 1
         return order
+
+class Unit:
+    def __init__(self):
+        self.currentAction = None
+
+class Cell:
+    def __init__(self, x, y, h=0, groundTexture=None, wallTexture=None):
+        self.x = x
+        self.y = y
+        self.h = h
+        self.groundTexture = groundTexture
+        self.wallTexture = wallTexture
+    def render(self):
+        dimensions = (Config.tileWidth, Config.tileHeight + self.h * Config.tileWallHeight)
+        tile = pygame.Surface(dimensions, pygame.SRCALPHA, 32)
+        tile.blit(self.groundTexture, (0,0))
+        for h in range(self.h):
+            y = Config.tileHeight/2 + h * Config.tileWallHeight
+            tile.blit(self.wallTexture, (0, y))
+        return tile
+
+class IsoGrid:
+    def __init__(self, dimensions, data):
+        self.width, self.height = dimensions
+        self.data = data
+        self.renderOrder = isoGridRenderOrder(self.width, self.height)
+    def __getitem__(self, coord):
+        try:
+            return self.data[coord[0]][coord[1]]
+        except:
+            return self.data[coord % self.width][coord / self.width]
     def render(self, dimensions, centerOnCell=(0,0)):
         surface = pygame.Surface(dimensions, pygame.SRCALPHA, 32)
-        for coord in self.isoGridRenderOrder(self.width, self.height):
+        for coord in self.renderOrder:
             col, row = coord
             cell = self.data[col][row]
-            tile = cell.render(self.tileSheet, self.wallTileSheet)
+            if cell == None:
+                continue
+            tile = cell.render()
             # Isometric Coordinates
             x = col * (Config.tileWidth/2) - row * (Config.tileWidth/2)
             y = col * (Config.tileHeight/2) + row * (Config.tileHeight/2)
@@ -86,9 +89,30 @@ class IsoGrid:
             surface.blit(tile, (x,y))
         return surface
 
+
+class PlayerGrid(IsoGrid):
+    def __init__(self, dimensions):
+        width, height = dimensions
+        IsoGrid.__init__(self, dimensions, [[None for y in range(height)] for x in range(width)])
+
+class GroundGrid(IsoGrid):
+    def __init__(self, dimensions):
+        width, height = dimensions
+        IsoGrid.__init__(self, dimensions, [[Cell(x,y) for y in range(height)] for x in range(width)])
+
+
 class IsoScene:
-    def __init__(self, isoGrid):
-        self.isoGrid = isoGrid
+    def __init__(self, groundGrid, playerGrid):
+        self.groundGrid = groundGrid
+        self.playerGrid = playerGrid
+        self.camera = (0, 0)
+        self.layers = [self.groundGrid, self.playerGrid]
+
+    def render(self, dimensions):
+        surface = pygame.Surface(dimensions, pygame.SRCALPHA, 32)
+        for layer in self.layers:
+            surface.blit(layer.render(dimensions, self.camera), (0,0))
+        return surface
 
 class IsoTacticsEngine(PyGameEngine):
     def __init__(self, title, icon):
@@ -101,18 +125,19 @@ class IsoTacticsEngine(PyGameEngine):
         self.wallTileSheet = Resource.TileSheet(Config.pathTileWalls, (64, 24))
     def setup(self):
         import random
-        isoGrid = IsoGrid((random.randint(3, 10), random.randint(3, 10)), self.tileSheet, self.wallTileSheet)
+        dimensions = (random.randint(3, 10), random.randint(3, 10))
+        isoGrid = GroundGrid(dimensions)
         n = 0
-
         for y in range(isoGrid.height):
             for x in range(isoGrid.width):
                 cell = isoGrid[(x, y)]
-                cell.groundTextureId = n
+                cell.groundTexture = self.tileSheet[n]
+                cell.wallTexture = self.wallTileSheet[n]
                 cell.h = random.randint(0, 6)
                 n += 1
-        self.screen.fill((0, 0, 0))
-        self.screen.blit(isoGrid.render(Config.resolution), (0,0))
-        self.loadScene(IsoScene(isoGrid))
+        #self.screen.fill((0, 0, 0))
+        #self.screen.blit(isoGrid.render(Config.resolution), (0,0))
+        self.loadScene(IsoScene(isoGrid, PlayerGrid(dimensions)))
 
     def keyInput(self, key):
         if key == pygame.K_ESCAPE:
@@ -121,8 +146,9 @@ class IsoTacticsEngine(PyGameEngine):
             self.paused = True
         elif key == pygame.K_g:
             self.setup()
-    #def gameTick(self):
-    #    pass
+    def gameTick(self):
+        self.screen.fill((0, 0, 0))
+        self.screen.blit(self.scene.render(Config.resolution), (0, 0))
     def loadScene(self, scene):
         self.scene = scene
 
