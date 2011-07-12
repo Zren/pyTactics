@@ -14,6 +14,8 @@ import pygame
 import Config, Resource
 from PyGameEngine import PyGameEngine
 
+
+
 class Cell:
     def __init__(self, x, y, h=0, groundTextureId=0, wallTextureId=0):
         self.x = x
@@ -42,10 +44,29 @@ class IsoGrid:
             return self.data[coord[0]][coord[1]]
         except:
             return self.data[coord % self.width][coord / self.width]
+    def isoGridRenderOrder(self, width, height):
+        order = []
+        col, row = 0, 0
+        index = 0
+        while True:
+            order.append((col,row))
+            if col >= width-1 and row >= height-1:
+                break
+            col -= 1
+            row += 1
+            if col < 0 or row >= height:
+                index += 1
+                col = index
+                row = 0
+                if index >= width:
+                    overflow = index - width + 1
+                    row +=  overflow
+                    col = width - 1
+        return order
     def render(self, dimensions, centerOnCell=(0,0)):
         surface = pygame.Surface(dimensions, pygame.SRCALPHA, 32)
-        col, row = 0, 0
-        while True:
+        for coord in self.isoGridRenderOrder(self.width, self.height):
+            col, row = coord
             cell = self.data[col][row]
             tile = cell.render(self.tileSheet, self.wallTileSheet)
             # Isometric Coordinates
@@ -63,13 +84,6 @@ class IsoGrid:
             x += centerOnCell[0] * Config.tileWidth
             y += centerOnCell[1] * Config.tileHeight
             surface.blit(tile, (x,y))
-
-            if col == self.width && row == self.height:
-                break
-            col -= 1
-            row += 1
-            if col < 0:
-
         return surface
 
 class IsoScene:
@@ -86,11 +100,12 @@ class IsoTacticsEngine(PyGameEngine):
         self.tileSheet = Resource.TileSheet(Config.pathTiles, (64, 32))
         self.wallTileSheet = Resource.TileSheet(Config.pathTileWalls, (64, 24))
     def setup(self):
-        isoGrid = IsoGrid((10, 10), self.tileSheet, self.wallTileSheet)
-        n = 0
         import random
+        isoGrid = IsoGrid((random.randint(3, 10), random.randint(3, 10)), self.tileSheet, self.wallTileSheet)
+        n = 0
+
         for y in range(isoGrid.height):
-            for x in range(isoGrid.height):
+            for x in range(isoGrid.width):
                 cell = isoGrid[(x, y)]
                 cell.groundTextureId = n
                 cell.h = random.randint(0, 6)
