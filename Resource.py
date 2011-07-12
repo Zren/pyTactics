@@ -22,7 +22,7 @@ class TileSheet:
         self.sheet = pygame.image.load(filename).convert_alpha()
         w,h = tileSize
         rects = []
-        for y in range(0, self.sheet.get_height()):
+        for y in range(0, self.sheet.get_height(), h):
             for x in range(0, self.sheet.get_width(), w):
                 rects.append(pygame.Rect(x, y, w, h))
         self.sprites = self.images_at(rects)
