@@ -10,10 +10,17 @@
 #-------------------------------------------------------------------------------
 #!/usr/bin/env python
 
-from Config import Config
+import pygame
+import Config, Resource
+from PyGameEngine import PyGameEngine
+from IsoTacticsEngine import IsoTacticsEngine
+
+
 
 def main():
-    print Config.name
-
+    e = IsoTacticsEngine(Config.title, pygame.image.load(Config.pathIcon))
+    e.load()
+    e.setup()
+    e.run()
 if __name__ == '__main__':
     main()

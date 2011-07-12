@@ -10,6 +10,22 @@
 #-------------------------------------------------------------------------------
 #!/usr/bin/env python
 
+import pygame
+
+class Menu:
+    def __init__(self, children={}, root=None):
+        self.children = children
+        self.root = root
+
+class Hud:
+    menu = None
+    selectedUnitA, selectedUnitB = None, None
+    helpText = None
+
+    def render():
+        return pygame.Suface(Config.resolution)
+
+
 def main():
     pass
 

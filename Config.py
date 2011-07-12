@@ -10,8 +10,18 @@
 #-------------------------------------------------------------------------------
 #!/usr/bin/env python
 
-class Config:
-    name = "pyTactics"
+import sys
+
+title = "pyTactics"
+resolution = (800, 600)
+tileSize = (64, 32)
+tileWidth, tileHeight = tileSize
+tileWallHeight = 8
+pathImages = sys.path[0] + "\\img\\"
+pathTiles = pathImages + "tile.png"
+pathTileWalls = pathImages + "tile-wall.png"
+pathIcon = pathImages + "icon.png"
+
 
 
 def main():
