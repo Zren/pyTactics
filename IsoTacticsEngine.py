@@ -44,25 +44,32 @@ class IsoGrid:
             return self.data[coord % self.width][coord / self.width]
     def render(self, dimensions, centerOnCell=(0,0)):
         surface = pygame.Surface(dimensions, pygame.SRCALPHA, 32)
-        for row in range(self.height):
-            for col in range(self.width):
-                cell = self.data[col][row]
-                tile = cell.render(self.tileSheet, self.wallTileSheet)
-                # Isometric Coordinates
-                x = col * (Config.tileWidth/2) - row * (Config.tileWidth/2)
-                y = col * (Config.tileHeight/2) + row * (Config.tileHeight/2)
-                # Tile Height
-                y -= cell.h * Config.tileWallHeight
-                # Center on surface
-                x += dimensions[0]/2
-                y += dimensions[1]/2
-                # Center on tile
-                x -= (Config.tileWidth/2)
-                y -= (Config.tileHeight/2)
-                # Centering offset
-                x += centerOnCell[0] * Config.tileWidth
-                y += centerOnCell[1] * Config.tileHeight
-                surface.blit(tile, (x,y))
+        col, row = 0, 0
+        while True:
+            cell = self.data[col][row]
+            tile = cell.render(self.tileSheet, self.wallTileSheet)
+            # Isometric Coordinates
+            x = col * (Config.tileWidth/2) - row * (Config.tileWidth/2)
+            y = col * (Config.tileHeight/2) + row * (Config.tileHeight/2)
+            # Tile Height
+            y -= cell.h * Config.tileWallHeight
+            # Center on surface
+            x += dimensions[0]/2
+            y += dimensions[1]/2
+            # Center on tile
+            x -= (Config.tileWidth/2)
+            y -= (Config.tileHeight/2)
+            # Centering offset
+            x += centerOnCell[0] * Config.tileWidth
+            y += centerOnCell[1] * Config.tileHeight
+            surface.blit(tile, (x,y))
+
+            if col == self.width && row == self.height:
+                break
+            col -= 1
+            row += 1
+            if col < 0:
+
         return surface
 
 class IsoScene:
