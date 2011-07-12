@@ -1,19 +1,21 @@
 #-------------------------------------------------------------------------------
-# Name:        pyTactics
-#              A python attempt at a FF Tactics-esque game.
+# Name:        module1
+# Purpose:
 #
-# Author:      Chris Holland (Zren)
+# Author:      Admin
 #
-# Created:     11/07/2011
-# Copyright:   (c) Chris Holland 2011
+# Created:     12/07/2011
+# Copyright:   (c) Admin 2011
 # Licence:     <your licence>
 #-------------------------------------------------------------------------------
 #!/usr/bin/env python
 
-from Config import Config
+class Config:
+    name = "pyTactics"
+
 
 def main():
-    print Config.name
+    pass
 
 if __name__ == '__main__':
     main()
