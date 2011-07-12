@@ -16,6 +16,7 @@ class PyGameEngine:
     def __init__(self, title, icon):
         print "Initialize PyGame"
         pygame.init()
+        self.screen = None
         self.title = title
         self.icon = icon
         self.paused = False
@@ -49,6 +50,9 @@ class PyGameEngine:
             self.running = False
         elif key == pygame.K_p:
             self.paused = True
+            self.renderPauseScreen()
+    def renderPauseScreen(self):
+        self.screen.fill((255, 255, 255, 128))
     def userEvent(self):
         self.fpsCounter += 1
         if pygame.time.get_ticks() - self.lastFPSTime >= 1000:

@@ -15,28 +15,28 @@ import Config, Resource
 from PyGameEngine import PyGameEngine
 
 def isoGridRenderOrder(width, height):
-        order = []
-        col, row = 0, 0
-        index = 0
-        while True:
-            order.append((col,row))
-            if col >= width-1 and row >= height-1:
-                break
-            col -= 1
-            row += 1
-            if col < 0 or row >= height:
-                index += 1
-                col = index
-                row = 0
-                if index >= width:
-                    overflow = index - width + 1
-                    row +=  overflow
-                    col = width - 1
-        return order
-
-class Unit:
-    def __init__(self):
-        self.currentAction = None
+    order = []
+    col, row = 0, 0
+    index = 0
+    while True:
+        order.append((col,row))
+        if col >= width-1 and row >= height-1:
+            break
+        col -= 1
+        row += 1
+        if col < 0 or row >= height:
+            index += 1
+            col = index
+            row = 0
+            if index >= width:
+                overflow = index - width + 1
+                row +=  overflow
+                col = width - 1
+    return order
+def isoCoordinates(col, row):
+    x = col * (Config.tileWidth/2) - row * (Config.tileWidth/2)
+    y = col * (Config.tileHeight/2) + row * (Config.tileHeight/2)
+    return [x, y]
 
 class Cell:
     def __init__(self, x, y, h=0, groundTexture=None, wallTexture=None):
@@ -73,8 +73,7 @@ class IsoGrid:
                 continue
             tile = cell.render()
             # Isometric Coordinates
-            x = col * (Config.tileWidth/2) - row * (Config.tileWidth/2)
-            y = col * (Config.tileHeight/2) + row * (Config.tileHeight/2)
+            x, y = isoCoordinates(col, row)
             # Tile Height
             y -= cell.h * Config.tileWallHeight
             # Center on surface
@@ -84,35 +83,55 @@ class IsoGrid:
             x -= (Config.tileWidth/2)
             y -= (Config.tileHeight/2)
             # Centering offset
-            x += centerOnCell[0] * Config.tileWidth
-            y += centerOnCell[1] * Config.tileHeight
+            offset = isoCoordinates(centerOnCell[0], centerOnCell[1])
+            x -= offset[0]
+            y -= offset[1]
             surface.blit(tile, (x,y))
         return surface
 
+class Player:
+    def __init__(self):
+        self.currentAction = None
 
 class PlayerGrid(IsoGrid):
     def __init__(self, dimensions):
         width, height = dimensions
         IsoGrid.__init__(self, dimensions, [[None for y in range(height)] for x in range(width)])
+        self.players = []
+    def move(a, b):
+        pass
+    def addPlayer(self, player, coord):
+        if self[coord]:
+            raise Exception, "Player already at that location"
+        self.players.append(player)
+        self[coord] = player
+
 
 class GroundGrid(IsoGrid):
     def __init__(self, dimensions):
         width, height = dimensions
         IsoGrid.__init__(self, dimensions, [[Cell(x,y) for y in range(height)] for x in range(width)])
 
-
 class IsoScene:
     def __init__(self, groundGrid, playerGrid):
         self.groundGrid = groundGrid
         self.playerGrid = playerGrid
-        self.camera = (0, 0)
+        self.camera = [0, 0]
         self.layers = [self.groundGrid, self.playerGrid]
+
+    def update(self):
+        pass
 
     def render(self, dimensions):
         surface = pygame.Surface(dimensions, pygame.SRCALPHA, 32)
         for layer in self.layers:
             surface.blit(layer.render(dimensions, self.camera), (0,0))
         return surface
+    def addPlayer(self):
+        self.playerGrid
+    def shiftCamera(self, x, y):
+        self.camera[0] += x
+        self.camera[1] += y
 
 class IsoTacticsEngine(PyGameEngine):
     def __init__(self, title, icon):
@@ -146,9 +165,18 @@ class IsoTacticsEngine(PyGameEngine):
             self.paused = True
         elif key == pygame.K_g:
             self.setup()
+        elif key == pygame.K_RIGHT:
+            self.scene.shiftCamera(1, 0)
+        elif key == pygame.K_DOWN:
+            self.scene.shiftCamera(0, 1)
+        elif key == pygame.K_LEFT:
+            self.scene.shiftCamera(-1, 0)
+        elif key == pygame.K_UP:
+            self.scene.shiftCamera(0, -1)
     def gameTick(self):
         self.screen.fill((0, 0, 0))
         self.screen.blit(self.scene.render(Config.resolution), (0, 0))
+        print self.scene.camera
     def loadScene(self, scene):
         self.scene = scene
 
