@@ -23,7 +23,7 @@ class TileSheet:
         w,h = tileSize
         self.horz = len(range(0, self.sheet.get_width(), w))
         self.vert = len(range(0, self.sheet.get_height(), h))
-
+        print "tile",self.horz,self.vert
         rects = []
         for y in range(0, self.sheet.get_height(), h):
             for x in range(0, self.sheet.get_width(), w):

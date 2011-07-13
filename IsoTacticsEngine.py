@@ -100,6 +100,14 @@ class IsoGrid:
         y += offset[1]
         surface.blit(tile, (x,y))
 
+class Action:
+    def __init__(self, playerSpriteId=0, overlaySprites=[], target=None):
+        self.playerFrame = 0
+        self.overlayFrame = 0
+        self.playerSpriteId = playerSpriteId
+        self.overlaySprites = overlaySprites
+        self.target = target
+
 class Player:
     class Dir:
         E, S, W, N = range(4)
@@ -107,10 +115,13 @@ class Player:
         self.currentAction = None
         self.direction = 0
         self.sprites = sprites
+    def playerSpriteId(self):
+        if self.currentAction == None:
+            return 0
+        else:
+            return self.currentAction.playerSpriteId
     def render(self, height):
-        #tile = pygame.Surface((0,0), pygame.SRCALPHA, 32)
-        return self.sprites[0][self.direction].copy()
-        #return tile
+        return self.sprites[self.playerSpriteId()][self.direction].copy()
 
 class PlayerGrid(IsoGrid):
     def __init__(self, dimensions):
@@ -149,6 +160,7 @@ class PlayerGrid(IsoGrid):
             player.direction = 1
         elif y < 0:
             player.direction = 3
+        player.currentAction = Action(1)
 
 
 
@@ -197,7 +209,7 @@ class IsoTacticsEngine(PyGameEngine):
         self.tileSheet = Resource.TileSheet(Config.pathTiles, (64, 32))
         self.wallTileSheet = Resource.TileSheet(Config.pathTileWalls, (64, 24))
         self.playerSpriteSheets = [Resource.TileSheet(Config.pathPlayerSprites % i, (64, 128)) for i in range(Config.numPlayerSprites)]
-        self.playerSprites = [[Resource.GameSprite([playerSpriteSheet[d] for d in range(4)]) for sprite in range(playerSpriteSheet.vert)] for playerSpriteSheet in self.playerSpriteSheets]
+        self.playerSprites = [[Resource.GameSprite([playerSpriteSheet[sprite*4+d] for d in range(4)]) for sprite in range(playerSpriteSheet.vert)] for playerSpriteSheet in self.playerSpriteSheets]
     def setup(self):
         dimensions = (random.randint(3, 10), random.randint(3, 10))
         scene = IsoScene(dimensions)
@@ -240,6 +252,8 @@ class IsoTacticsEngine(PyGameEngine):
     def shift(self, x, y):
         self.scene.playerGrid.shiftPlayer(self.player, x, y)
         self.scene.selection = self.scene[self.scene.playerGrid.find(self.player)]
+    def secTick(self):
+        print self.player.playerSpriteId()
 
 def main():
     e = IsoTacticsEngine(Config.resolution, Config.title, pygame.image.load(Config.pathIcon))

@@ -75,10 +75,13 @@ class PyGameEngine:
             frames += 1
             if time.time() - last_sec >= 1:
                 print "FPS:",frames
+                self.secTick()
                 frames = 0
                 last_sec = time.time()
         pygame.quit()
     def gameTick(self):
+        pass
+    def secTick(self):
         pass
 
 def main():
