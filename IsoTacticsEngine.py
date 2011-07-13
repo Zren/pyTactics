@@ -101,12 +101,19 @@ class IsoGrid:
         surface.blit(tile, (x,y))
 
 class Action:
-    def __init__(self, playerSpriteId=0, overlaySprites=[], target=None):
+    def __init__(self, playerSpriteIds=[0], overlaySprites=[], target=None):
         self.playerFrame = 0
         self.overlayFrame = 0
-        self.playerSpriteId = playerSpriteId
+        self.playerSpriteIds = playerSpriteIds
         self.overlaySprites = overlaySprites
         self.target = target
+    def tick(self):
+        self.playerFrame += 1
+        if self.playerFrame >= len(self.playerSpriteIds):
+            self.playerFrame = 0
+        self.overlayFrame += 1
+        if self.overlayFrame >= len(self.overlaySprites):
+            self.overlayFrame = 0
 
 class Player:
     class Dir:
@@ -119,9 +126,12 @@ class Player:
         if self.currentAction == None:
             return 0
         else:
-            return self.currentAction.playerSpriteId
+            return self.currentAction.playerSpriteIds[self.currentAction.playerFrame]
     def render(self, height):
         return self.sprites[self.playerSpriteId()][self.direction].copy()
+    def tick(self):
+        if self.currentAction:
+            self.currentAction.tick()
 
 class PlayerGrid(IsoGrid):
     def __init__(self, dimensions):
@@ -160,7 +170,7 @@ class PlayerGrid(IsoGrid):
             player.direction = 1
         elif y < 0:
             player.direction = 3
-        player.currentAction = Action(1)
+        player.currentAction = Action([0,1])
 
 
 
@@ -247,6 +257,10 @@ class IsoTacticsEngine(PyGameEngine):
     def gameTick(self):
         self.screen.fill((0, 0, 0))
         self.screen.blit(self.scene.render(self.resolution), (0, 0))
+        for player in self.scene.playerGrid.players:
+            player.tick()
+        print "tick"
+
     def loadScene(self, scene):
         self.scene = scene
     def shift(self, x, y):

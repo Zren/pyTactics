@@ -25,6 +25,7 @@ class PyGameEngine:
         self.lastFPSTime = pygame.time.get_ticks()
         self.running = 1
         self.targetFPS = 30
+        self.maxFPS = 60
         pygame.display.set_icon(self.icon)
         pygame.display.set_caption(self.title)
     def pausedInput(self, events):
@@ -62,22 +63,25 @@ class PyGameEngine:
             self.lastFPSTime = pygame.time.get_ticks()
     def run(self):
         pygame.time.set_timer(pygame.USEREVENT, int(1000.0 / self.targetFPS + 0.5))
+        self.clock = pygame.time.Clock()
         print "Stepping every %d ticks" % int(1000.0 / self.targetFPS + 0.5)
         last_sec = time.time()
-        frames = 0
+        frame = 0
         while self.running:
             if self.paused:
                 self.pausedInput(pygame.event.get())
             else:
                 self.gameInput(pygame.event.get())
-                self.gameTick()
+                if frame % self.targetFPS == 0:
+                    self.gameTick()
             pygame.display.flip()
-            frames += 1
+            frame += 1
             if time.time() - last_sec >= 1:
-                print "FPS:",frames
+                print "FPS:",frame
                 self.secTick()
-                frames = 0
+                frame = 0
                 last_sec = time.time()
+            self.clock.tick(self.maxFPS)
         pygame.quit()
     def gameTick(self):
         pass
