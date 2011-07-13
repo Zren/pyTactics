@@ -173,7 +173,6 @@ class PlayerGrid(IsoGrid):
         player.currentAction = Action([0,1])
 
 
-
 class GroundGrid(IsoGrid):
     def __init__(self, dimensions):
         width, height = dimensions
@@ -209,6 +208,62 @@ class IsoScene(IsoGrid):
     def shiftCamera(self, x, y):
         self.camera[0] += x
         self.camera[1] += y
+    def playerWalkTo(self, player, target):
+        path = self.pathTo(self.playerGrid.find(player), target)
+        print "path", path
+        if path:
+            self.playerGrid.moveTo(player, path[1])
+            self.camera = [path[1][0], path[1][1]]
+
+
+    def pathTo(self, a, b):
+        if a == b:
+            return None
+        class Node:
+            def __init__(self, root):
+                self.root = root
+        def neighbours(coord):
+            x, y = coord
+            return [(x+1,y), (x,y+1), (x-1,y), (x,y-1)]
+        def valid(coord):
+            x, y = coord
+            return 0 <= x < self.width and 0 <= y < self.height
+        WALKED = 2
+        WALKABLE = 0
+        WALL = 1
+        dist = [[WALKABLE for y in range(self.height)] for x in range(self.width)]
+        q = [a]
+        for y in range(self.height):
+            for x in range(self.width):
+                if self.playerGrid[(x,y)] != None:
+                    dist[x][y] = WALL
+        dist[a[0]][a[1]] = WALKED
+        nodes = {a : Node(None)}
+        while True:
+            here = q.pop(0)
+            if here == None:
+                return None
+            for n in neighbours(here):
+                if valid(n):
+                    if n == b:
+                        nodes[n] = Node(here)
+                        path = [n]
+                        node = nodes[n]
+                        while node.root != None:
+                            path.insert(0, node.root)
+                            node = nodes[node.root]
+                        return path
+                    x, y = n
+                    if dist[x][y] == WALKABLE:
+                        q.append(n)
+                        dist[x][y] = WALKED
+                        nodes[n] = Node(here)
+
+
+
+
+
+
 
 class IsoTacticsEngine(PyGameEngine):
     def __init__(self, resolution, title, icon):
@@ -259,7 +314,6 @@ class IsoTacticsEngine(PyGameEngine):
         self.screen.blit(self.scene.render(self.resolution), (0, 0))
         for player in self.scene.playerGrid.players:
             player.tick()
-        print "tick"
 
     def loadScene(self, scene):
         self.scene = scene
@@ -267,7 +321,7 @@ class IsoTacticsEngine(PyGameEngine):
         self.scene.playerGrid.shiftPlayer(self.player, x, y)
         self.scene.selection = self.scene[self.scene.playerGrid.find(self.player)]
     def secTick(self):
-        print self.player.playerSpriteId()
+        self.scene.playerWalkTo(self.player, (0,0))
 
 def main():
     e = IsoTacticsEngine(Config.resolution, Config.title, pygame.image.load(Config.pathIcon))

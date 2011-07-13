@@ -77,7 +77,7 @@ class PyGameEngine:
             pygame.display.flip()
             frame += 1
             if time.time() - last_sec >= 1:
-                print "FPS:",frame
+                #print "FPS:",frame
                 self.secTick()
                 frame = 0
                 last_sec = time.time()
