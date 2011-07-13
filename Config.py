@@ -17,10 +17,13 @@ resolution = (800, 600)
 tileSize = (64, 32)
 tileWidth, tileHeight = tileSize
 tileWallHeight = 8
+playerSpriteHeight = 128
 pathImages = sys.path[0] + "\\img\\"
 pathTiles = pathImages + "tile.png"
 pathTileWalls = pathImages + "tile-wall.png"
 pathIcon = pathImages + "icon.png"
+numPlayerSprites = 1
+pathPlayerSprites = pathImages + "player-%d.png"
 
 
 

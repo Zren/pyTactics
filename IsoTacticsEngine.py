@@ -72,22 +72,6 @@ class IsoGrid:
             self.data[coord[0]][coord[1]] = value
         except:
             self.data[coord % self.width][coord / self.width] = value
-    """
-    def render(self, dimensions, centerOnCell=(0,0)):
-        surface = pygame.Surface(dimensions, pygame.SRCALPHA, 32)
-        for coord in self.renderOrder:
-            col, row = coord
-            cell = self.data[col][row]
-            if cell == None:
-                continue
-            tile = cell.render()
-            # Isometric Coordinates
-            x, y = isoCoordinates(col, row)
-            # Tile Height
-            y -= cell.h * Config.tileWallHeight
-            surface.blit(tile, (x,y))
-        return surface
-    """
     def renderCell(self, surface, cellData, offset):
         cell = self.data[cellData.x][cellData.y]
         if cell == None:
@@ -103,11 +87,16 @@ class IsoGrid:
         surface.blit(tile, (x,y))
 
 class Player:
-    def __init__(self):
+    class Dir:
+        E, S, W, N = range(4)
+    def __init__(self, sprites):
         self.currentAction = None
+        self.direction = 0
+        self.sprites = sprites
     def render(self, height):
-        tile = pygame.Surface((0,0), pygame.SRCALPHA, 32)
-        return tile
+        #tile = pygame.Surface((0,0), pygame.SRCALPHA, 32)
+        return self.sprites[0][0]
+        #return tile
 
 class PlayerGrid(IsoGrid):
     def __init__(self, dimensions):
@@ -121,6 +110,8 @@ class PlayerGrid(IsoGrid):
             raise Exception, "Player already at that location"
         self.players.append(player)
         self[coord] = player
+    def renderCell(self, surface, cellData, offset):
+        IsoGrid.renderCell(self, surface, cellData, (offset[0], offset[1]-Config.playerSpriteHeight+Config.tileHeight))
 
 
 class GroundGrid(IsoGrid):
@@ -167,6 +158,8 @@ class IsoTacticsEngine(PyGameEngine):
     def load(self):
         self.tileSheet = Resource.TileSheet(Config.pathTiles, (64, 32))
         self.wallTileSheet = Resource.TileSheet(Config.pathTileWalls, (64, 24))
+        self.playerSpriteSheets = [Resource.TileSheet(Config.pathPlayerSprites % i, (64, 128)) for i in range(Config.numPlayerSprites)]
+        self.playerSprites = [[Resource.GameSprite([playerSpriteSheet[d] for d in range(4)]) for sprite in range(playerSpriteSheet.vert)] for playerSpriteSheet in self.playerSpriteSheets]
     def setup(self):
         import random
         dimensions = (random.randint(3, 10), random.randint(3, 10))
@@ -179,7 +172,7 @@ class IsoTacticsEngine(PyGameEngine):
                 groundTile.wallTexture = self.wallTileSheet[n]
                 scene[(x,y)].h = random.randint(0, 6)
                 n += 1
-        player = Player()
+        player = Player(self.playerSprites[0])
         scene.playerGrid.addPlayer(player, (0,0))
         self.loadScene(scene)
 

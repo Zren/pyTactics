@@ -21,6 +21,9 @@ class TileSheet:
     def __init__(self, filename, tileSize):
         self.sheet = pygame.image.load(filename).convert_alpha()
         w,h = tileSize
+        self.horz = len(range(0, self.sheet.get_width(), w))
+        self.vert = len(range(0, self.sheet.get_height(), h))
+
         rects = []
         for y in range(0, self.sheet.get_height(), h):
             for x in range(0, self.sheet.get_width(), w):
@@ -41,11 +44,11 @@ class TileSheet:
         return [self.image_at(rect, colorkey) for rect in rects]
     def __getitem__(self, i):
         return self.sprites[i];
+    def __len__(self):
+        return len(self.sprites)
 
 class GameSprite():
-    class Dir:
-        E, S, W, N = range(4)
     def __init__(self, sprites):
         self.sprites = sprites
-    def render(direction):
-        return self.sprites[direction]
+    def __getitem__(self, d):
+        return self.sprites[d];
