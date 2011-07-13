@@ -50,6 +50,13 @@ def isoCoordinates(col, row):
     y = col * (Config.tileHeight/2) + row * (Config.tileHeight/2)
     return [x, y]
 
+def isoHeightMapCoordinates(cellData):
+    # Isometric Coordinates
+    x, y = isoCoordinates(cellData.x, cellData.y)
+    # Tile Height
+    y -= cellData.h * Config.tileWallHeight
+    return [x, y]
+
 class Cell:
     def __init__(self, x, y, h=0):
         self.x = x
@@ -97,63 +104,129 @@ class IsoGrid:
         if selected:
             c = overlayLevel(0, 64)
             tile.fill((c,c,0), special_flags=pygame.BLEND_ADD)
-        # Isometric Coordinates
-        x, y = isoCoordinates(cellData.x, cellData.y)
-        # Tile Height
-        y -= cellData.h * Config.tileWallHeight
+        x, y = isoHeightMapCoordinates(cellData)
         # Offset
         x += offset[0]
         y += offset[1]
         surface.blit(tile, (x,y))
 
 class Action:
-    def __init__(self, playerSpriteIds, target=None, overlaySprites=[]):
+    def __init__(self, playerSpriteIds=[0], prepTime=int(0), cooldown=int(0), target=None, overlaySprites=[]):
+        self.prepTime = prepTime
+        self.cooldown = cooldown
         self.playerFrame = 0
         self.overlayFrame = 0
         self.playerSpriteIds = playerSpriteIds
         self.overlaySprites = overlaySprites
         self.target = target
-    def playerSpriteId(self):
+    def getPlayerSpriteId(self):
         return self.playerSpriteIds[self.playerFrame]
     def tick(self, player, engine):
+        if player.mode == Player.Mode.Moving:
+            self.do(player, engine)
         self.playerFrame += 1
         if self.playerFrame >= len(self.playerSpriteIds):
             self.playerFrame = 0
         self.overlayFrame += 1
         if self.overlayFrame >= len(self.overlaySprites):
             self.overlayFrame = 0
-        self.do(player, engine)
     def do(self, player, engine):
         self.doneAction(player)
     def doneAction(self, player):
-        player.mode = Player.Mode.Cooldown
+        player.nextMode()
 
 class WalkAction(Action):
-    def do(self, player, engine):
+    def __init__(self, playerSpriteIds=[0], prepTime=int(0), cooldown=int(0), target=None, overlaySprites=[]):
+        Action.__init__(self, playerSpriteIds, prepTime, cooldown, target, overlaySprites)
+        self.path = None
         if self.target:
-            if engine.scene.playerWalkTo(player, self.target) == False:
-                self.doneAction(player)
+            self.thisCell = None
+            self.nextCell = None
+            self.thisCellCoord = None
+            self.nextCellCoord = None
+    def do(self, player, engine):
+        if self.target and self.path == None:
+            self.path = engine.scene.pathTo(engine.scene.playerGrid.find(player), self.target)
+        if self.path == None:
+            self.doneAction(player)
+        else:
+            if len(self.path) > 0:
+                if self.playerFrame == 0:
+                    self.nextCell = self.path.pop(0)
+                    print self.path
+                    self.thisCell = engine.scene.playerGrid.find(player)
+                    if len(self.playerSpriteIds) > 0:
+                        self.nextCellCoord = isoHeightMapCoordinates(engine.scene[self.nextCell])
+                        self.thisCellCoord = isoHeightMapCoordinates(engine.scene[self.thisCell])
+                if len(self.playerSpriteIds) > 0:
+                    dx = self.nextCellCoord[0]-self.thisCellCoord[0]
+                    dy = self.nextCellCoord[1]-self.thisCellCoord[1]
+                    player.offset = (dx/len(self.playerSpriteIds)*self.playerFrame, dy/len(self.playerSpriteIds)*self.playerFrame)
+            if self.playerFrame == len(self.playerSpriteIds)-1:
+                player.offset = None
+                print len(self.path), self.nextCell
+                engine.scene.playerGrid.shiftPlayer(player, self.nextCell[0]-self.thisCell[0], self.nextCell[1]-self.thisCell[1])
+                if len(self.path) == 0:
+                    self.doneAction(player)
+
+
 
 class Player:
     class Dir:
         E, S, W, N = range(4)
     class Mode:
         Wait, Ready, Prep, Moving, Cooldown = range(5)
+        def __len__():
+            return 5
     def __init__(self, sprites):
         self.mode = Player.Mode.Wait
         self.direction = 0
         self.sprites = sprites
-        self.currentAction = Action([0,1])
+        self.currentAction = Action(Config.playerWaitSpriteIds)
+        self.offset = None
+        self.nextAction = 0
+        self.stat = {}
+        for statName in Config.statNames:
+            self.stat[statName] = 1
+        print self.stat
     def playerSpriteId(self):
         if self.currentAction == None:
             return 0
         else:
-            return self.currentAction.playerSpriteId()
+            return self.currentAction.getPlayerSpriteId()
     def render(self, height):
         return self.sprites[self.playerSpriteId()][self.direction].copy()
+    def doAction(self, action):
+        if self.mode == Player.Mode.Ready:
+            self.currentAction = action
+            self.nextMode()
+    def nextMode(self):
+        self.mode += 1
+        if self.mode > 4:
+            self.mode = 0
+
+        if self.mode == Player.Mode.Wait:
+            self.nextAction = Config.waitTime
+            self.currentAction = Action(Config.playerWaitSpriteIds)
+        elif self.mode == Player.Mode.Prep:
+            self.nextAction = self.currentAction.prepTime
+        elif self.mode == Player.Mode.Cooldown:
+            self.nextAction = self.currentAction.cooldown
+        else:
+            self.nextAction = 0
     def tick(self, engine):
-        if self.currentAction:
-            self.currentAction.tick(self, engine)
+        if self.mode == Player.Mode.Moving:
+            if self.currentAction:
+                self.currentAction.tick(self, engine)
+        elif self.mode == Player.Mode.Ready:
+            pass
+        else:
+            self.nextAction -= self.stat['Speed']
+            if self.nextAction <= 0:
+                self.nextMode()
+
+
+
 
 class PlayerGrid(IsoGrid):
     def __init__(self, dimensions):
@@ -177,7 +250,13 @@ class PlayerGrid(IsoGrid):
         self.players.append(player)
         self[coord] = player
     def renderCell(self, surface, cellData, offset, selected=False):
-        IsoGrid.renderCell(self, surface, cellData, (offset[0], offset[1]-Config.playerSpriteHeight+Config.tileHeight), selected)
+        offsetX = offset[0]
+        offsetY = offset[1] - Config.playerSpriteHeight + Config.tileHeight
+        player = self[cellData.xy()]
+        if player and player.offset:
+            offsetX += player.offset[0]
+            offsetY += player.offset[1]
+        IsoGrid.renderCell(self, surface, cellData, (offsetX, offsetY), selected)
     def find(self, player):
         for y in range(self.height):
             for x in range(self.width):
@@ -238,14 +317,13 @@ class IsoScene(IsoGrid):
     def playerWalkTo(self, player, target):
         here = self.playerGrid.find(player)
         path = self.pathTo(here, target)
-        print "path", path
         if path:
-            #self.select(path[1])
             return self.playerGrid.shiftPlayer(player, path[1][0]-here[0], path[1][1]-here[1])
         return False
     def select(self, coord):
-         self.selection = self[coord]
-         self.camera = list(coord)
+        if self.validCoord(coord):
+            self.selection = self[coord]
+            self.camera = list(coord)
     def pathTo(self, a, b):
         if a == b:
             return None
@@ -290,8 +368,9 @@ class IsoScene(IsoGrid):
         self.walkToSelection()
     def walkToSelection(self):
         if self.selectedPlayer:
-            self.selectedPlayer.currentAction = WalkAction([2,3,4,5], self.selection.xy())
-            self.playerWalkTo(self.selectedPlayer, self.selection.xy())
+            self.selectedPlayer.doAction(WalkAction(Config.playerWalkSpriteIds, 0, 0, self.selection.xy()))
+            self.selectedPlayer.mode = Player.Mode.Prep
+            #self.playerWalkTo(self.selectedPlayer, self.selection.xy())
 
 class IsoTacticsEngine(PyGameEngine):
     def __init__(self, resolution, title, icon):
@@ -347,6 +426,8 @@ class IsoTacticsEngine(PyGameEngine):
         #if self.scene.playerGrid.shiftPlayer(self.player, x, y):
         self.scene.select((self.scene.camera[0]+x, self.scene.camera[1]+y))
     def secTick(self):
+        player = self.scene.selectedPlayer
+        print player.mode, player.nextAction
         pass#self.scene.playerWalkTo(self.scene.selectedPlayer, (0,0))
 
 def main():

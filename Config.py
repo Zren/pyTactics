@@ -31,6 +31,12 @@ maxJumpHeight = 4
 pathFonts = sys.path[0] + "\\font\\"
 pathHudFont = pathFonts + "UnZialish.ttf"
 hudFontSize = 20
+statNames = ['Strength', 'Speed', 'Defence']
+
+waitTime = 100
+
+playerWaitSpriteIds = [0, 1]
+playerWalkSpriteIds = [2, 3, 4, 5]
 
 
 
