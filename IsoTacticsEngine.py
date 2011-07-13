@@ -13,6 +13,7 @@
 import pygame
 import Config, Resource
 from PyGameEngine import PyGameEngine
+import random
 
 def isoGridRenderOrder(width, height):
     order = []
@@ -63,14 +64,14 @@ class IsoGrid:
         self.data = data
 
     def __getitem__(self, coord):
-        try:
+        if type(coord) == tuple:
             return self.data[coord[0]][coord[1]]
-        except:
+        else:
             return self.data[coord % self.width][coord / self.width]
     def __setitem__(self, coord, value):
-        try:
+        if type(coord) == tuple:
             self.data[coord[0]][coord[1]] = value
-        except:
+        else:
             self.data[coord % self.width][coord / self.width] = value
     def renderCell(self, surface, cellData, offset):
         cell = self.data[cellData.x][cellData.y]
@@ -103,8 +104,10 @@ class PlayerGrid(IsoGrid):
         width, height = dimensions
         IsoGrid.__init__(self, dimensions, [[None for y in range(height)] for x in range(width)])
         self.players = []
-    def move(a, b):
-        pass
+    def move(self, a, b):
+        if self[b] == None:
+            self[b] = self[a]
+            self[a] = None
     def addPlayer(self, player, coord):
         if self[coord]:
             raise Exception, "Player already at that location"
@@ -150,10 +153,8 @@ class IsoScene(IsoGrid):
         self.camera[1] += y
 
 class IsoTacticsEngine(PyGameEngine):
-    def __init__(self, title, icon):
-        PyGameEngine.__init__(self, title, icon)
-        self.screen = pygame.display.set_mode(Config.resolution)
-        pygame.init()
+    def __init__(self, resolution, title, icon):
+        PyGameEngine.__init__(self, resolution, title, icon)
         self.scene = None
     def load(self):
         self.tileSheet = Resource.TileSheet(Config.pathTiles, (64, 32))
@@ -161,7 +162,7 @@ class IsoTacticsEngine(PyGameEngine):
         self.playerSpriteSheets = [Resource.TileSheet(Config.pathPlayerSprites % i, (64, 128)) for i in range(Config.numPlayerSprites)]
         self.playerSprites = [[Resource.GameSprite([playerSpriteSheet[d] for d in range(4)]) for sprite in range(playerSpriteSheet.vert)] for playerSpriteSheet in self.playerSpriteSheets]
     def setup(self):
-        import random
+
         dimensions = (random.randint(3, 10), random.randint(3, 10))
         scene = IsoScene(dimensions)
         n = 0
@@ -172,8 +173,9 @@ class IsoTacticsEngine(PyGameEngine):
                 groundTile.wallTexture = self.wallTileSheet[n]
                 scene[(x,y)].h = random.randint(0, 6)
                 n += 1
+        self.p = (0,0)
         player = Player(self.playerSprites[0])
-        scene.playerGrid.addPlayer(player, (0,0))
+        scene.playerGrid.addPlayer(player, self.p)
         self.loadScene(scene)
 
     def keyInput(self, key):
@@ -185,25 +187,32 @@ class IsoTacticsEngine(PyGameEngine):
             self.setup()
         elif key == pygame.K_RIGHT:
             self.scene.shiftCamera(1, 0)
+            self.shift(1, 0)
         elif key == pygame.K_DOWN:
             self.scene.shiftCamera(0, 1)
+            self.shift(0, 1)
         elif key == pygame.K_LEFT:
             self.scene.shiftCamera(-1, 0)
+            self.shift(-1, 0)
         elif key == pygame.K_UP:
             self.scene.shiftCamera(0, -1)
+            self.shift(0, -1)
     def gameTick(self):
         self.screen.fill((0, 0, 0))
-        self.screen.blit(self.scene.render(Config.resolution), (0, 0))
+        self.screen.blit(self.scene.render(self.resolution), (0, 0))
     def loadScene(self, scene):
         self.scene = scene
-
+    def shift(self, x, y):
+        t = (self.p[0]+x, self.p[1]+y)
+        self.scene.playerGrid.move(self.p, t)
+        self.p = t
 
 
 
 
 
 def main():
-    e = IsoTacticsEngine(Config.title, pygame.image.load(Config.pathIcon))
+    e = IsoTacticsEngine(Config.resolution, Config.title, pygame.image.load(Config.pathIcon))
     e.load()
     e.setup()
     e.run()

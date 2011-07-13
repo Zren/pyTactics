@@ -13,10 +13,11 @@ import pygame
 import time
 
 class PyGameEngine:
-    def __init__(self, title, icon):
+    def __init__(self, resolution, title, icon):
         print "Initialize PyGame"
         pygame.init()
-        self.screen = None
+        self.resolution = resolution
+        self.screen = pygame.display.set_mode(self.resolution)
         self.title = title
         self.icon = icon
         self.paused = False
