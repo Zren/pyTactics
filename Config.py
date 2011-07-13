@@ -24,6 +24,7 @@ pathTileWalls = pathImages + "tile-wall.png"
 pathIcon = pathImages + "icon.png"
 numPlayerSprites = 1
 pathPlayerSprites = pathImages + "player-%d.png"
+framesPerSecond = 8
 
 
 
