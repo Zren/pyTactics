@@ -84,7 +84,7 @@ class IsoGrid:
         self.data = data
 
     def __getitem__(self, coord):
-        if type(coord) == tuple:
+        if type(coord) == tuple or type(coord) == list:
             return self.data[coord[0]][coord[1]]
         else:
             return self.data[coord % self.width][coord / self.width]
@@ -134,6 +134,8 @@ class Action:
         self.doneAction(player)
     def doneAction(self, player):
         player.nextMode()
+    def __repr__(self):
+        return "<Action(prep='%d', cooldown='%d' playerFrame='%d')>" % (self.prepTime, self.cooldown, self.playerFrame)
 
 class WalkAction(Action):
     def __init__(self, playerSpriteIds=[0], prepTime=int(0), cooldown=int(0), target=None, overlaySprites=[]):
@@ -144,30 +146,51 @@ class WalkAction(Action):
             self.nextCell = None
             self.thisCellCoord = None
             self.nextCellCoord = None
+            self.jumpHeight = 0
     def do(self, player, engine):
         if self.target and self.path == None:
             self.path = engine.scene.pathTo(engine.scene.playerGrid.find(player), self.target)
+            if self.path != None:
+                self.path.pop(0)
+            self.playerFrame = 0
         if self.path == None:
             self.doneAction(player)
         else:
             if len(self.path) > 0:
                 if self.playerFrame == 0:
                     self.nextCell = self.path.pop(0)
-                    print self.path
                     self.thisCell = engine.scene.playerGrid.find(player)
+                    player.rotate(self.nextCell[0]-self.thisCell[0], self.nextCell[1]-self.thisCell[1])
+                    #print self.path
                     if len(self.playerSpriteIds) > 0:
-                        self.nextCellCoord = isoHeightMapCoordinates(engine.scene[self.nextCell])
-                        self.thisCellCoord = isoHeightMapCoordinates(engine.scene[self.thisCell])
-                if len(self.playerSpriteIds) > 0:
-                    dx = self.nextCellCoord[0]-self.thisCellCoord[0]
-                    dy = self.nextCellCoord[1]-self.thisCellCoord[1]
-                    player.offset = (dx/len(self.playerSpriteIds)*self.playerFrame, dy/len(self.playerSpriteIds)*self.playerFrame)
+                        nextCellData = engine.scene[self.nextCell]
+                        thisCellData = engine.scene[self.thisCell]
+                        self.nextCellCoord = isoHeightMapCoordinates(nextCellData)
+                        self.thisCellCoord = isoHeightMapCoordinates(thisCellData)
+                        self.jumpHeight = nextCellData.h - thisCellData.h
+
+            if len(self.playerSpriteIds) > 0:
+                dx = self.nextCellCoord[0]-self.thisCellCoord[0]
+                dy = self.nextCellCoord[1]-self.thisCellCoord[1]
+
+                ox = dx/len(self.playerSpriteIds)*(self.playerFrame+1)
+                oy = dy/len(self.playerSpriteIds)*(self.playerFrame+1)
+                #if self.playerFrame > len(self.playerSpriteIds)/2:
+                #    oy += self.jumpHeight*Config.tileWallHeight/len(self.playerSpriteIds)/2
+                if self.jumpHeight > 0:
+                    oy += -(self.jumpHeight)*(self.playerFrame-len(self.playerSpriteIds))**2
+                elif self.jumpHeight < -2:
+                    oy += self.jumpHeight*Config.tileWallHeight*self.playerFrame
+                player.offset = (ox, oy)
+
             if self.playerFrame == len(self.playerSpriteIds)-1:
                 player.offset = None
-                print len(self.path), self.nextCell
-                engine.scene.playerGrid.shiftPlayer(player, self.nextCell[0]-self.thisCell[0], self.nextCell[1]-self.thisCell[1])
+                engine.scene.playerGrid.move(self.thisCell, self.nextCell)
                 if len(self.path) == 0:
                     self.doneAction(player)
+    def __repr__(self):
+        return "<WalkAction(prep='%d', cooldown='%d' playerFrame='%d')>" % (self.prepTime, self.cooldown, self.playerFrame)
+
 
 
 
@@ -179,6 +202,7 @@ class Player:
         def __len__():
             return 5
     def __init__(self, sprites):
+        self.name = "Chris"
         self.mode = Player.Mode.Wait
         self.direction = 0
         self.sprites = sprites
@@ -188,7 +212,6 @@ class Player:
         self.stat = {}
         for statName in Config.statNames:
             self.stat[statName] = 1
-        print self.stat
     def playerSpriteId(self):
         if self.currentAction == None:
             return 0
@@ -224,6 +247,17 @@ class Player:
             self.nextAction -= self.stat['Speed']
             if self.nextAction <= 0:
                 self.nextMode()
+    def rotate(self, x, y):
+        if x > 0:
+            self.direction = 0
+        elif x < 0:
+            self.direction = 2
+        elif y > 0:
+            self.direction = 1
+        elif y < 0:
+            self.direction = 3
+    def __repr__(self):
+        return "<Player(mode='%d', next='%d' dir='%d', action='%s' stat='%s')>" % (self.mode, self.nextAction, self.direction, self.currentAction, self.stat)
 
 
 
@@ -265,14 +299,7 @@ class PlayerGrid(IsoGrid):
         return None
     def shiftPlayer(self, player, x, y):
         c = self.find(player)
-        if x > 0:
-            player.direction = 0
-        elif x < 0:
-            player.direction = 2
-        elif y > 0:
-            player.direction = 1
-        elif y < 0:
-            player.direction = 3
+        player.rotate(x, y)
         return self.move(c, (c[0]+x, c[1]+y))
 
 
@@ -293,9 +320,7 @@ class IsoScene(IsoGrid):
         self.selection = None
         self.hud = Hud(dimensions)
         self.selectedPlayer = None
-
-    def update(self):
-        pass
+        self.select(self.camera)
 
     def render(self, dimensions):
         surface = pygame.Surface(dimensions, pygame.SRCALPHA, 32)
@@ -323,6 +348,7 @@ class IsoScene(IsoGrid):
     def select(self, coord):
         if self.validCoord(coord):
             self.selection = self[coord]
+            self.hud.selectedPlayerA = self.playerGrid[coord]
             self.camera = list(coord)
     def pathTo(self, a, b):
         if a == b:
@@ -365,12 +391,15 @@ class IsoScene(IsoGrid):
                         nodes[n] = Node(here)
         return None
     def triggerSelection(self):
-        self.walkToSelection()
+        if self.selectedPlayer:
+            self.walkToSelection()
+            self.selectedPlayer = None
+        else:
+            self.selectedPlayer = self.playerGrid[self.selection.xy()]
+
     def walkToSelection(self):
         if self.selectedPlayer:
             self.selectedPlayer.doAction(WalkAction(Config.playerWalkSpriteIds, 0, 0, self.selection.xy()))
-            self.selectedPlayer.mode = Player.Mode.Prep
-            #self.playerWalkTo(self.selectedPlayer, self.selection.xy())
 
 class IsoTacticsEngine(PyGameEngine):
     def __init__(self, resolution, title, icon):
@@ -393,8 +422,12 @@ class IsoTacticsEngine(PyGameEngine):
                 groundTile.wallTexture = self.wallTileSheet[n]
                 scene[(x,y)].h = random.randint(0, 6)
                 n += 1
-        scene.selectedPlayer = Player(self.playerSprites[0])
-        scene.playerGrid.addPlayer(scene.selectedPlayer, (0,0))
+        for i in range(4):
+            player = Player(self.playerSprites[0])
+            player.stat['Speed'] = 50
+            player.stat['Hp'] = 100
+            player.stat['MaxHp'] = 100
+            scene.playerGrid.addPlayer(player, (i,0))
         self.loadScene(scene)
 
     def keyInput(self, key):
@@ -419,6 +452,7 @@ class IsoTacticsEngine(PyGameEngine):
         self.screen.blit(self.scene.render(self.resolution), (0, 0))
         for player in self.scene.playerGrid.players:
             player.tick(self)
+            #print player
 
     def loadScene(self, scene):
         self.scene = scene
@@ -426,9 +460,9 @@ class IsoTacticsEngine(PyGameEngine):
         #if self.scene.playerGrid.shiftPlayer(self.player, x, y):
         self.scene.select((self.scene.camera[0]+x, self.scene.camera[1]+y))
     def secTick(self):
-        player = self.scene.selectedPlayer
-        print player.mode, player.nextAction
-        pass#self.scene.playerWalkTo(self.scene.selectedPlayer, (0,0))
+        #player = self.scene.selectedPlayer
+        #self.scene.playerWalkTo(self.scene.selectedPlayer, (0,0))
+        pass
 
 def main():
     e = IsoTacticsEngine(Config.resolution, Config.title, pygame.image.load(Config.pathIcon))

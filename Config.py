@@ -30,13 +30,29 @@ maxJumpHeight = 4
 
 pathFonts = sys.path[0] + "\\font\\"
 pathHudFont = pathFonts + "UnZialish.ttf"
-hudFontSize = 20
-statNames = ['Strength', 'Speed', 'Defence']
-
+statNames = ['Hp', 'MaxHp', 'Strength', 'Speed', 'Defence']
 waitTime = 100
 
 playerWaitSpriteIds = [0, 1]
 playerWalkSpriteIds = [2, 3, 4, 5]
+
+hudSelectionSize = (resolution[0]/4, resolution[1]/4)
+hudSelectionPosA = (0, resolution[1]-hudSelectionSize[1])
+hudSelectionPosB = (resolution[0]-hudSelectionSize[0], resolution[1]-hudSelectionSize[1])
+
+hudBgColor = (32, 32, 32, 128)
+hudFontColor = (255, 255, 255)
+
+hudNameFontSize = 20
+hudNamePadding = 5
+
+hudStatBarFontSize = 10
+hudStatBarPadding = 2
+hudStatBarSize = (hudSelectionSize[1]-hudStatBarPadding*2, hudNameFontSize)
+hudStatBarColorA = (255, 0, 0)
+hudStatBarColorB = (0, 0, 255)
+
+
 
 
 
