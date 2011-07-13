@@ -28,6 +28,10 @@ framesPerSecond = 8
 
 maxJumpHeight = 4
 
+pathFonts = sys.path[0] + "\\font\\"
+pathHudFont = pathFonts + "UnZialish.ttf"
+hudFontSize = 20
+
 
 
 def main():

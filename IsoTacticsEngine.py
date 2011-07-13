@@ -13,6 +13,7 @@
 import pygame
 import Config, Resource
 from PyGameEngine import PyGameEngine
+from Hud import *
 import random
 import time
 
@@ -54,6 +55,8 @@ class Cell:
         self.x = x
         self.y = y
         self.h = h
+    def xy(self):
+        return (self.x, self.y)
 
 class GroundTile:
     def __init__(self, groundTexture=None, wallTexture=None):
@@ -104,37 +107,53 @@ class IsoGrid:
         surface.blit(tile, (x,y))
 
 class Action:
-    def __init__(self, playerSpriteIds=[0], overlaySprites=[], target=None):
+    def __init__(self, playerSpriteIds, target=None, overlaySprites=[]):
         self.playerFrame = 0
         self.overlayFrame = 0
         self.playerSpriteIds = playerSpriteIds
         self.overlaySprites = overlaySprites
         self.target = target
-    def tick(self):
+    def playerSpriteId(self):
+        return self.playerSpriteIds[self.playerFrame]
+    def tick(self, player, engine):
         self.playerFrame += 1
         if self.playerFrame >= len(self.playerSpriteIds):
             self.playerFrame = 0
         self.overlayFrame += 1
         if self.overlayFrame >= len(self.overlaySprites):
             self.overlayFrame = 0
+        self.do(player, engine)
+    def do(self, player, engine):
+        self.doneAction(player)
+    def doneAction(self, player):
+        player.mode = Player.Mode.Cooldown
+
+class WalkAction(Action):
+    def do(self, player, engine):
+        if self.target:
+            if engine.scene.playerWalkTo(player, self.target) == False:
+                self.doneAction(player)
 
 class Player:
     class Dir:
         E, S, W, N = range(4)
+    class Mode:
+        Wait, Ready, Prep, Moving, Cooldown = range(5)
     def __init__(self, sprites):
-        self.currentAction = None
+        self.mode = Player.Mode.Wait
         self.direction = 0
         self.sprites = sprites
+        self.currentAction = Action([0,1])
     def playerSpriteId(self):
         if self.currentAction == None:
             return 0
         else:
-            return self.currentAction.playerSpriteIds[self.currentAction.playerFrame]
+            return self.currentAction.playerSpriteId()
     def render(self, height):
         return self.sprites[self.playerSpriteId()][self.direction].copy()
-    def tick(self):
+    def tick(self, engine):
         if self.currentAction:
-            self.currentAction.tick()
+            self.currentAction.tick(self, engine)
 
 class PlayerGrid(IsoGrid):
     def __init__(self, dimensions):
@@ -175,7 +194,6 @@ class PlayerGrid(IsoGrid):
             player.direction = 1
         elif y < 0:
             player.direction = 3
-        player.currentAction = Action([0,1])
         return self.move(c, (c[0]+x, c[1]+y))
 
 
@@ -194,6 +212,8 @@ class IsoScene(IsoGrid):
         self.layers = [self.groundGrid, self.playerGrid]
         self.renderOrder = [self[coord] for coord in isoGridRenderOrder(self.width, self.height)]
         self.selection = None
+        self.hud = Hud(dimensions)
+        self.selectedPlayer = None
 
     def update(self):
         pass
@@ -205,6 +225,7 @@ class IsoScene(IsoGrid):
         offsetY = dimensions[1]/2 - (Config.tileHeight/2) - centeringOffset[1]
         for cell in self.renderOrder:
             self.renderCell(surface, cell, (offsetX, offsetY), cell == self.selection)
+        self.hud.render(surface)
         return surface
     def renderCell(self, surface, cell, offset, selected=False):
         for layer in self.layers:
@@ -219,8 +240,9 @@ class IsoScene(IsoGrid):
         path = self.pathTo(here, target)
         print "path", path
         if path:
-            self.playerGrid.shiftPlayer(player, path[1][0]-here[0], path[1][1]-here[1])
-            self.select(path[1])
+            #self.select(path[1])
+            return self.playerGrid.shiftPlayer(player, path[1][0]-here[0], path[1][1]-here[1])
+        return False
     def select(self, coord):
          self.selection = self[coord]
          self.camera = list(coord)
@@ -264,12 +286,12 @@ class IsoScene(IsoGrid):
                         dist[x][y] = WALKED
                         nodes[n] = Node(here)
         return None
-
-
-
-
-
-
+    def triggerSelection(self):
+        self.walkToSelection()
+    def walkToSelection(self):
+        if self.selectedPlayer:
+            self.selectedPlayer.currentAction = WalkAction([2,3,4,5], self.selection.xy())
+            self.playerWalkTo(self.selectedPlayer, self.selection.xy())
 
 class IsoTacticsEngine(PyGameEngine):
     def __init__(self, resolution, title, icon):
@@ -292,8 +314,8 @@ class IsoTacticsEngine(PyGameEngine):
                 groundTile.wallTexture = self.wallTileSheet[n]
                 scene[(x,y)].h = random.randint(0, 6)
                 n += 1
-        self.player = Player(self.playerSprites[0])
-        scene.playerGrid.addPlayer(self.player, (0,0))
+        scene.selectedPlayer = Player(self.playerSprites[0])
+        scene.playerGrid.addPlayer(scene.selectedPlayer, (0,0))
         self.loadScene(scene)
 
     def keyInput(self, key):
@@ -311,19 +333,21 @@ class IsoTacticsEngine(PyGameEngine):
             self.shift(-1, 0)
         elif key == pygame.K_UP:
             self.shift(0, -1)
+        elif key == pygame.K_SPACE:
+            self.scene.triggerSelection()
     def gameTick(self):
         self.screen.fill((0, 0, 0))
         self.screen.blit(self.scene.render(self.resolution), (0, 0))
         for player in self.scene.playerGrid.players:
-            player.tick()
+            player.tick(self)
 
     def loadScene(self, scene):
         self.scene = scene
     def shift(self, x, y):
-        if self.scene.playerGrid.shiftPlayer(self.player, x, y):
-            self.scene.select(self.scene.playerGrid.find(self.player))
+        #if self.scene.playerGrid.shiftPlayer(self.player, x, y):
+        self.scene.select((self.scene.camera[0]+x, self.scene.camera[1]+y))
     def secTick(self):
-        self.scene.playerWalkTo(self.player, (0,0))
+        pass#self.scene.playerWalkTo(self.scene.selectedPlayer, (0,0))
 
 def main():
     e = IsoTacticsEngine(Config.resolution, Config.title, pygame.image.load(Config.pathIcon))

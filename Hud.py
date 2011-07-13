@@ -11,6 +11,7 @@
 #!/usr/bin/env python
 
 import pygame
+import Config
 
 class Menu:
     def __init__(self, children={}, root=None):
@@ -18,12 +19,17 @@ class Menu:
         self.root = root
 
 class Hud:
-    menu = None
-    selectedUnitA, selectedUnitB = None, None
-    helpText = None
+    def __init__(self, dimensions):
+        self.width, self.height = dimensions
+        self.font = pygame.font.Font(Config.pathHudFont, Config.hudFontSize)
+        self.menu = None
+        self.selectedUnitA = None
+        self.selectedUnitB = None
+        self.helpText = None
 
-    def render():
-        return pygame.Suface(Config.resolution)
+    def render(self, surface):
+        if self.selectedUnitA:
+            surface.blit(surface, (0,0))
 
 
 def main():
