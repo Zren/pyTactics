@@ -228,6 +228,13 @@ class IsoScene(IsoGrid):
         def valid(coord):
             x, y = coord
             return 0 <= x < self.width and 0 <= y < self.height
+        def getPath(grid, pathNodes, node):
+            path = [n]
+            node = nodes[n]
+            while node.root != None:
+                path.insert(0, node.root)
+                node = nodes[node.root]
+            return path
         WALKED = 2
         WALKABLE = 0
         WALL = 1
@@ -239,25 +246,19 @@ class IsoScene(IsoGrid):
                     dist[x][y] = WALL
         dist[a[0]][a[1]] = WALKED
         nodes = {a : Node(None)}
-        while True:
+        while len(q) > 0:
             here = q.pop(0)
-            if here == None:
-                return None
             for n in neighbours(here):
-                if valid(n):
+                if valid(n) and self[here].h+Config.maxJumpHeight-self[n].h >= 0:
                     if n == b:
                         nodes[n] = Node(here)
-                        path = [n]
-                        node = nodes[n]
-                        while node.root != None:
-                            path.insert(0, node.root)
-                            node = nodes[node.root]
-                        return path
+                        return getPath(dist, nodes, here)
                     x, y = n
                     if dist[x][y] == WALKABLE:
                         q.append(n)
                         dist[x][y] = WALKED
                         nodes[n] = Node(here)
+        return None
 
 
 
