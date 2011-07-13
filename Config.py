@@ -26,7 +26,7 @@ numPlayerSprites = 1
 pathPlayerSprites = pathImages + "player-%d.png"
 framesPerSecond = 8
 
-maxJumpHeight = 0
+maxJumpHeight = 4
 
 
 

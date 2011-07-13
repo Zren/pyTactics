@@ -83,6 +83,9 @@ class IsoGrid:
             self.data[coord[0]][coord[1]] = value
         else:
             self.data[coord % self.width][coord / self.width] = value
+    def validCoord(self, coord):
+        x, y = coord
+        return 0 <= x < self.width and 0 <= y < self.height
     def renderCell(self, surface, cellData, offset, selected=False):
         cell = self.data[cellData.x][cellData.y]
         if cell == None:
@@ -139,13 +142,16 @@ class PlayerGrid(IsoGrid):
         IsoGrid.__init__(self, dimensions, [[None for y in range(height)] for x in range(width)])
         self.players = []
     def move(self, a, b):
-        if self[b] == None:
+        if self.validCoord(a) and self.validCoord(b) and self[b] == None:
             self[b] = self[a]
             self[a] = None
+            return True
+        return False
     def moveTo(self, player, target):
         if self[target] == None:
             coord = self.find(player)
-            self.move(coord, target)
+            return self.move(coord, target)
+        return False
     def addPlayer(self, player, coord):
         if self[coord]:
             raise Exception, "Player already at that location"
@@ -161,7 +167,6 @@ class PlayerGrid(IsoGrid):
         return None
     def shiftPlayer(self, player, x, y):
         c = self.find(player)
-        self.move(c, (c[0]+x, c[1]+y))
         if x > 0:
             player.direction = 0
         elif x < 0:
@@ -171,6 +176,7 @@ class PlayerGrid(IsoGrid):
         elif y < 0:
             player.direction = 3
         player.currentAction = Action([0,1])
+        return self.move(c, (c[0]+x, c[1]+y))
 
 
 class GroundGrid(IsoGrid):
@@ -209,13 +215,15 @@ class IsoScene(IsoGrid):
         self.camera[0] += x
         self.camera[1] += y
     def playerWalkTo(self, player, target):
-        path = self.pathTo(self.playerGrid.find(player), target)
+        here = self.playerGrid.find(player)
+        path = self.pathTo(here, target)
         print "path", path
         if path:
-            self.playerGrid.moveTo(player, path[1])
-            self.camera = [path[1][0], path[1][1]]
-
-
+            self.playerGrid.shiftPlayer(player, path[1][0]-here[0], path[1][1]-here[1])
+            self.select(path[1])
+    def select(self, coord):
+         self.selection = self[coord]
+         self.camera = list(coord)
     def pathTo(self, a, b):
         if a == b:
             return None
@@ -225,9 +233,6 @@ class IsoScene(IsoGrid):
         def neighbours(coord):
             x, y = coord
             return [(x+1,y), (x,y+1), (x-1,y), (x,y-1)]
-        def valid(coord):
-            x, y = coord
-            return 0 <= x < self.width and 0 <= y < self.height
         def getPath(grid, pathNodes, node):
             path = [n]
             node = nodes[n]
@@ -249,7 +254,7 @@ class IsoScene(IsoGrid):
         while len(q) > 0:
             here = q.pop(0)
             for n in neighbours(here):
-                if valid(n) and self[here].h+Config.maxJumpHeight-self[n].h >= 0:
+                if self.validCoord(n) and self[here].h+Config.maxJumpHeight-self[n].h >= 0:
                     if n == b:
                         nodes[n] = Node(here)
                         return getPath(dist, nodes, here)
@@ -299,16 +304,12 @@ class IsoTacticsEngine(PyGameEngine):
         elif key == pygame.K_g:
             self.setup()
         elif key == pygame.K_RIGHT:
-            self.scene.shiftCamera(1, 0)
             self.shift(1, 0)
         elif key == pygame.K_DOWN:
-            self.scene.shiftCamera(0, 1)
             self.shift(0, 1)
         elif key == pygame.K_LEFT:
-            self.scene.shiftCamera(-1, 0)
             self.shift(-1, 0)
         elif key == pygame.K_UP:
-            self.scene.shiftCamera(0, -1)
             self.shift(0, -1)
     def gameTick(self):
         self.screen.fill((0, 0, 0))
@@ -319,8 +320,8 @@ class IsoTacticsEngine(PyGameEngine):
     def loadScene(self, scene):
         self.scene = scene
     def shift(self, x, y):
-        self.scene.playerGrid.shiftPlayer(self.player, x, y)
-        self.scene.selection = self.scene[self.scene.playerGrid.find(self.player)]
+        if self.scene.playerGrid.shiftPlayer(self.player, x, y):
+            self.scene.select(self.scene.playerGrid.find(self.player))
     def secTick(self):
         self.scene.playerWalkTo(self.player, (0,0))
 
