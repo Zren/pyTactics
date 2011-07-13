@@ -89,7 +89,7 @@ class IsoGrid:
             return
         tile = cell.render(cellData.h)
         if selected:
-            c = overlayLevel(64, 128)
+            c = overlayLevel(0, 64)
             tile.fill((c,c,0), special_flags=pygame.BLEND_ADD)
         # Isometric Coordinates
         x, y = isoCoordinates(cellData.x, cellData.y)
@@ -109,7 +109,7 @@ class Player:
         self.sprites = sprites
     def render(self, height):
         #tile = pygame.Surface((0,0), pygame.SRCALPHA, 32)
-        return self.sprites[0][0].copy()
+        return self.sprites[0][self.direction].copy()
         #return tile
 
 class PlayerGrid(IsoGrid):
@@ -141,6 +141,15 @@ class PlayerGrid(IsoGrid):
     def shiftPlayer(self, player, x, y):
         c = self.find(player)
         self.move(c, (c[0]+x, c[1]+y))
+        if x > 0:
+            player.direction = 0
+        elif x < 0:
+            player.direction = 2
+        elif y > 0:
+            player.direction = 1
+        elif y < 0:
+            player.direction = 3
+
 
 
 class GroundGrid(IsoGrid):
@@ -231,12 +240,6 @@ class IsoTacticsEngine(PyGameEngine):
     def shift(self, x, y):
         self.scene.playerGrid.shiftPlayer(self.player, x, y)
         self.scene.selection = self.scene[self.scene.playerGrid.find(self.player)]
-
-
-
-
-
-
 
 def main():
     e = IsoTacticsEngine(Config.resolution, Config.title, pygame.image.load(Config.pathIcon))
